@@ -1,0 +1,15 @@
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/bin/Debug/net8.0/mes_equipment
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/bin/Debug/net8.0/mes_equipment.deps.json
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/bin/Debug/net8.0/mes_equipment.runtimeconfig.json
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/bin/Debug/net8.0/mes_equipment.dll
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/bin/Debug/net8.0/mes_equipment.pdb
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/obj/Debug/net8.0/mes_equipment.GeneratedMSBuildEditorConfig.editorconfig
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/obj/Debug/net8.0/mes_equipment.AssemblyInfoInputs.cache
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/obj/Debug/net8.0/mes_equipment.AssemblyInfo.cs
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/obj/Debug/net8.0/mes_equipment.csproj.CoreCompileInputs.cache
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/obj/Debug/net8.0/mes_equipment.sourcelink.json
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/obj/Debug/net8.0/mes_equipment.dll
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/obj/Debug/net8.0/refint/mes_equipment.dll
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/obj/Debug/net8.0/mes_equipment.pdb
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/obj/Debug/net8.0/mes_equipment.genruntimeconfig.cache
+/Users/kyungsoojeong/Dev/mes_total/mes_equipment/obj/Debug/net8.0/ref/mes_equipment.dll

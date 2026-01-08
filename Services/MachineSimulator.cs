@@ -22,6 +22,7 @@ public class MachineSimulator
             if (workOrder != null) // 새로운 작업이 있음
             {
                 // 작업 수행 코드
+                await ProcessWorkOrder(workOrder);
                 
             } else
             {
