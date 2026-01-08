@@ -60,15 +60,29 @@ public class MachineSimulator
             DefectCode = isSuccess ? null : "ERR-102" // 불량인 경우 불량 코드 추가
         };
 
-        bool reportResult = await _apiService.ReportProductionAsync(report);
-        if (reportResult)
+        string reportStatus = await _apiService.ReportProductionAsync(report);
+        if (reportStatus == "OK")
         {
             Console.ForegroundColor = isSuccess ? ConsoleColor.Green : ConsoleColor.Red;
             Console.WriteLine($"[Report] {order.ProductCode} 생산 결과: {report.Result}");
             Console.ResetColor();
-        } else
+        } else if (reportStatus == "SHORTAGE")
         {
-            Console.WriteLine("[Warn] 보고 실패. 다음 폴링에서 재시도합니다.");
-        }        
+            // ★ 자재 부족 시 비상 정지 로직
+            Console.WriteLine();
+            Console.BackgroundColor = ConsoleColor.Red;
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine(" [ALARM] 자재 재고가 부족합니다! 생산을 중단합니다. ");
+            Console.WriteLine(" [Action] 자재 보충 후 시뮬레이터를 다시 실행하세요. ");
+            Console.ResetColor();
+
+            // 프로그램을 종료하거나 무한 대기 상태로 빠지게 하여 설비 가동을 멈춤
+            Environment.Exit(0); 
+        }
+        else
+        {
+            // 서버 에러나 네트워크 오류 시
+            Console.WriteLine($"[Warn] 보고 실패: {reportStatus}. 잠시 후 재시도합니다.");
+        }     
     }
 }

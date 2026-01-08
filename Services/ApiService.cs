@@ -38,16 +38,32 @@ public class ApiService
     }
 
     // 생산 실적 보고 (POST)
-    public async Task<bool> ReportProductionAsync(ProductionReportDto report)
+    public async Task<string> ReportProductionAsync(ProductionReportDto report)
     {
       try
       {
         var response = await _httpClient.PostAsJsonAsync("machine/report", report);
-        return response.IsSuccessStatusCode;
+        // 1. 성공 시 "OK" 반환
+        if (response.IsSuccessStatusCode)
+        {
+            return "OK";
+        }
+
+        // 2. 실패 시 서버가 보낸 에러 메시지 확인
+        // Spring Boot의 RuntimeException 메시지는 보통 응답 본문에 포함됩니다.
+        string errorContent = await response.Content.ReadAsStringAsync();
+
+        if (errorContent.Contains("SHORTAGE"))
+        {
+            return "SHORTAGE"; // 자재 부족 상태
+        }
+
+        return "SERVER_ERROR"; // 기타 서버 에러 (500 등)
+        
       } catch (Exception ex)
       {
         Console.WriteLine($"[Error] 실적 보고 실패: {ex.Message}");
-        return false;
+        return "NETWORK_ERROR";
       }
     }
 }
