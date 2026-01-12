@@ -1,8 +1,8 @@
 using System;
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using System.Net.Http.Headers;
 
 public class ApiService
 {
@@ -15,14 +15,35 @@ public class ApiService
             BaseAddress = new Uri(AppConfig.BaseUrl) // 객체 초기화 문법
         };
     }
+    // 로그인 기능
+    public async Task<bool> LoginAsync(string email, string password)
+    {
+      try {
+          var loginDto = new LoginReqDto { Email = email, Password = password };
+          var response = await _httpClient.PostAsJsonAsync("auth/login", loginDto);
+
+          if (response.IsSuccessStatusCode) {
+              var tokenDto = await response.Content.ReadFromJsonAsync<TokenDto>();
+              if (tokenDto != null) {
+                  // ★ 핵심: 이후 모든 요청에 Bearer 토큰을 자동으로 붙임
+                  _httpClient.DefaultRequestHeaders.Authorization = 
+                      new AuthenticationHeaderValue("Bearer", tokenDto.AccessToken);
+                  return true;
+              }
+          }
+      } catch (Exception ex) {
+          Console.WriteLine($"[Login Error] {ex.Message}");
+      }
+      return false;
+    }
+
 
     // 폴링 : 서버에 해야할 일이 있는지 주기적으로 물어 봄
     public async Task<WorkOrderDto> PollWorkOrderAsync()
     {
         try
         {
-            // http://localhost:8111/api/mes/machine/poll  RequestParam 방식
-            var url = $"machine/poll?machineId={Uri.EscapeDataString(AppConfig.MachineId)}";
+            var url = $"api/mes/machine/poll?machineId={Uri.EscapeDataString(AppConfig.MachineId)}";
 
         var response = await _httpClient.GetAsync(url);
         if (response.StatusCode == System.Net.HttpStatusCode.OK)  // 응답이 200
@@ -42,7 +63,7 @@ public class ApiService
     {
       try
       {
-        var response = await _httpClient.PostAsJsonAsync("machine/report", report);
+        var response = await _httpClient.PostAsJsonAsync("api/mes/machine/report", report);
         // 1. 성공 시 "OK" 반환
         if (response.IsSuccessStatusCode)
         {
