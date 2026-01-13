@@ -52,10 +52,13 @@ public class MachineSimulator
         await Task.Delay(2000);  // 2초 마다 생산
         bool isSuccess = _random.NextDouble() > 0.05; // 95% 확률로 양품
 
+        string serialNo = $"{order.ProductCode}-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
+
         var report = new ProductionReportDto
         {
             OrderId = order.Id,
             MachineId = AppConfig.MachineId,
+            SerialNo = serialNo, // 직접 생성해서 전달
             Result = isSuccess ? "OK" : "NG",
             DefectCode = isSuccess ? null : "ERR-102" // 불량인 경우 불량 코드 추가
         };
