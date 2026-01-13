@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
@@ -7,84 +9,121 @@ using System.Net.Http.Headers;
 public class ApiService
 {
     private readonly HttpClient _httpClient; 
+    private TokenDto _currentTokens;
 
     public ApiService()
     {
         _httpClient = new HttpClient
         {
-            BaseAddress = new Uri(AppConfig.BaseUrl) // 객체 초기화 문법
+            BaseAddress = new Uri(AppConfig.BaseUrl)
         };
     }
-    // 로그인 기능
+
+    // 1. 로그인 기능
     public async Task<bool> LoginAsync(string email, string password)
     {
-      try {
-          var loginDto = new LoginReqDto { Email = email, Password = password };
-          var response = await _httpClient.PostAsJsonAsync("auth/login", loginDto);
+        try {
+            var loginDto = new LoginReqDto { Email = email, Password = password };
+            var response = await _httpClient.PostAsJsonAsync("auth/login", loginDto);
 
-          if (response.IsSuccessStatusCode) {
-              var tokenDto = await response.Content.ReadFromJsonAsync<TokenDto>();
-              if (tokenDto != null) {
-                  // ★ 핵심: 이후 모든 요청에 Bearer 토큰을 자동으로 붙임
-                  _httpClient.DefaultRequestHeaders.Authorization = 
-                      new AuthenticationHeaderValue("Bearer", tokenDto.AccessToken);
-                  return true;
-              }
-          }
-      } catch (Exception ex) {
-          Console.WriteLine($"[Login Error] {ex.Message}");
-      }
-      return false;
+            if (response.IsSuccessStatusCode) {
+                _currentTokens = await response.Content.ReadFromJsonAsync<TokenDto>();
+                if (_currentTokens != null) {
+                    SetAuthHeader(_currentTokens.AccessToken);
+                    Console.WriteLine("[Auth] 로그인 성공 및 토큰 저장 완료");
+                    return true;
+                }
+            }
+        } catch (Exception ex) {
+            Console.WriteLine($"[Login Error] {ex.Message}");
+        }
+        return false;
     }
 
+    // 2. 토큰 갱신 기능 (서버의 @PostMapping("/refresh")에 대응)
+    private async Task<bool> RefreshTokenAsync()
+    {
+        try {
+            if (_currentTokens == null || string.IsNullOrEmpty(_currentTokens.RefreshToken)) return false;
 
-    // 폴링 : 서버에 해야할 일이 있는지 주기적으로 물어 봄
+            // 로그에 찍힌 에러(HttpMediaTypeNotSupportedException)를 해결하기 위해 
+            // 다시 JSON 방식으로 보냅니다.
+            var response = await _httpClient.PostAsJsonAsync("auth/refresh", _currentTokens);
+
+            if (response.IsSuccessStatusCode) {
+                _currentTokens = await response.Content.ReadFromJsonAsync<TokenDto>();
+                if (_currentTokens != null) {
+                    SetAuthHeader(_currentTokens.AccessToken);
+                    Console.WriteLine("[Auth] 토큰 재발급 성공");
+                    return true;
+                }
+            } else {
+                // 실패 시 원인 파악을 위한 로그
+                string error = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"[Refresh Failed] 상태코드: {response.StatusCode}, 사유: {error}");
+            }
+        } catch (Exception ex) { 
+            Console.WriteLine($"[Refresh Error] {ex.Message}"); 
+        }
+        return false;
+    }
+
+    // 3. 공통 요청 처리 (401 발생 시 자동 재발급 및 재시도)
+    private async Task<HttpResponseMessage> SendWithRetryAsync(Func<Task<HttpResponseMessage>> action)
+    {
+        var response = await action();
+
+        // 401(Unauthorized)이 발생했다면 토큰이 만료된 것임
+        if (response.StatusCode == HttpStatusCode.Unauthorized) {
+            Console.WriteLine("[Auth] 토큰 만료 감지 -> 재발급 시도...");
+            
+            if (await RefreshTokenAsync()) {
+                // 재발급 성공했으므로 실패했던 action을 한 번 더 시도
+                Console.WriteLine("[Auth] 재발급 성공 -> 기존 요청 재시도");
+                return await action();
+            }
+        }
+        return response;
+    }
+
+    // 4. 폴링
     public async Task<WorkOrderDto> PollWorkOrderAsync()
     {
-        try
-        {
+        try {
             var url = $"api/mes/machine/poll?machineId={Uri.EscapeDataString(AppConfig.MachineId)}";
-
-        var response = await _httpClient.GetAsync(url);
-        if (response.StatusCode == System.Net.HttpStatusCode.OK)  // 응답이 200
-        {
-            return await response.Content.ReadFromJsonAsync<WorkOrderDto>();
-        }
             
-        } catch (Exception ex)
-        {
+            // SendWithRetryAsync를 거쳐서 호출
+            var response = await SendWithRetryAsync(() => _httpClient.GetAsync(url));
+
+            if (response.StatusCode == HttpStatusCode.OK) {
+                return await response.Content.ReadFromJsonAsync<WorkOrderDto>();
+            }
+        } catch (Exception ex) {
             Console.WriteLine($"[Error] API 통신 실패 : {ex.Message}");
         }
         return null;
     }
 
-    // 생산 실적 보고 (POST)
+    // 5. 생산 실적 보고
     public async Task<string> ReportProductionAsync(ProductionReportDto report)
     {
-      try
-      {
-        var response = await _httpClient.PostAsJsonAsync("api/mes/machine/report", report);
-        // 1. 성공 시 "OK" 반환
-        if (response.IsSuccessStatusCode)
-        {
-            return "OK";
+        try {
+            // SendWithRetryAsync를 거쳐서 호출
+            var response = await SendWithRetryAsync(() => _httpClient.PostAsJsonAsync("api/mes/machine/report", report));
+
+            if (response.IsSuccessStatusCode) {
+                return "OK";
+            }
+
+            string errorContent = await response.Content.ReadAsStringAsync();
+            return errorContent.Contains("SHORTAGE") ? "SHORTAGE" : "SERVER_ERROR";
+        } catch (Exception ex) {
+            Console.WriteLine($"[Error] 실적 보고 실패: {ex.Message}");
+            return "NETWORK_ERROR";
         }
+    }
 
-        // 2. 실패 시 서버가 보낸 에러 메시지 확인
-        // Spring Boot의 RuntimeException 메시지는 보통 응답 본문에 포함됩니다.
-        string errorContent = await response.Content.ReadAsStringAsync();
-
-        if (errorContent.Contains("SHORTAGE"))
-        {
-            return "SHORTAGE"; // 자재 부족 상태
-        }
-
-        return "SERVER_ERROR"; // 기타 서버 에러 (500 등)
-        
-      } catch (Exception ex)
-      {
-        Console.WriteLine($"[Error] 실적 보고 실패: {ex.Message}");
-        return "NETWORK_ERROR";
-      }
+    private void SetAuthHeader(string token) {
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 }
