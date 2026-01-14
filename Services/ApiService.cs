@@ -126,4 +126,22 @@ public class ApiService
     private void SetAuthHeader(string token) {
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
+
+    // 실시간 설비 상태 온도 보고 
+    public async Task ReportMachineStatusAsync(MachineStatusDto statusDto)
+    {
+        try
+        {
+            // 실시간 모니터링 API 호출
+            var response = await _httpClient.PostAsJsonAsync("api/mes/machine/status", statusDto);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"[Status Error] 서버 응답 오류: {response.StatusCode}");
+            }
+        } catch (Exception ex)
+        {
+            Console.WriteLine($"[Status Error] 설비 상태 전송 실패: {ex.Message}");
+        }
+    }
 }

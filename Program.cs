@@ -4,7 +4,8 @@ class Program
     static async Task Main()
     {
         var apiService = new ApiService();
-        var simulator = new MachineSimulator(apiService);
+        var tcpService = new TcpClientService(); // [추가] TCP 통신 전용 서비스 생성
+        var simulator = new MachineSimulator(apiService, tcpService);
 
         // 로그인 성공할 때까지 반복
         while (!(await LoginConsole.AttemptLogin(apiService))) 
